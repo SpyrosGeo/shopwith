@@ -15,6 +15,7 @@ function App() {
   const logout = useMutation({
     mutationFn: () => api('/auth/logout', { method: 'POST' }),
     onSuccess: () => {
+      queryClient.clear() // drop all cached data, so the next user on this device never sees it
       queryClient.setQueryData(['me'], null)
       navigate('/')
     },
@@ -30,7 +31,17 @@ function App() {
         {me ? (
           <div className="flex min-w-0 items-center gap-3">
             <span className="truncate text-sm text-white/60">{me.name}</span>
-            <button type="button" onClick={() => logout.mutate()} className={outlineButton}>
+            {logout.isError && (
+              <span role="alert" className="text-xs text-red-500">
+                Log out failed
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => logout.mutate()}
+              disabled={logout.isPending}
+              className={`${outlineButton} disabled:opacity-50`}
+            >
               Log out
             </button>
           </div>
