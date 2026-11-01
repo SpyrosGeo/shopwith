@@ -11,3 +11,57 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime   @default(now())
+  sessions     Session[]
+  lists        List[]
+  purchases    Purchase[]
+}
+
+model Session {
+  id        String   @id // random token stored in the httpOnly cookie
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+
+  @@index([userId])
+}
+
+model List {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     Item[]
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Item {
+  id        String    @id @default(cuid())
+  name      String
+  quantity  Int       @default(1)
+  listId    String
+  list      List      @relation(fields: [listId], references: [id], onDelete: Cascade)
+  checkedAt DateTime? // null = still to buy
+  createdAt DateTime  @default(now())
+
+  @@index([listId])
+}
+
+// One row per checked-off item; suggestions are computed from this history.
+model Purchase {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String // lowercased + trimmed by the app so "Milk " == "milk"
+  purchasedAt DateTime @default(now())
+
+  @@index([userId, name, purchasedAt])
+}

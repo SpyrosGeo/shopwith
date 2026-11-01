@@ -1,11 +1,6 @@
-import Fastify from 'fastify'
+import { buildApp } from './app.js'
 
-const app = Fastify({ logger: true })
-
-app.get('/', async () => {
-  return 'hello world'
-})
-
+const app = buildApp()
 const port = Number(process.env['PORT'] ?? 3000)
 
 try {
