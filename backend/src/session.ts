@@ -1,11 +1,14 @@
 import { createHash, randomBytes } from 'node:crypto'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { prisma } from './db.js'
+import type { Prisma } from './generated/prisma/client.js'
 
 const COOKIE = 'session'
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 
-export type SafeUser = { id: string; email: string; name: string }
+// The user fields safe to send to the client. Use this select everywhere a user is returned.
+export const safeUserSelect = { id: true, email: true, name: true } satisfies Prisma.UserSelect
+export type SafeUser = Prisma.UserGetPayload<{ select: typeof safeUserSelect }>
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -40,7 +43,7 @@ export async function requireUser(request: FastifyRequest, reply: FastifyReply) 
   const session = token
     ? await prisma.session.findUnique({
         where: { id: hashToken(token) },
-        include: { user: { select: { id: true, email: true, name: true } } },
+        include: { user: { select: safeUserSelect } },
       })
     : null
 
