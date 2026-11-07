@@ -1,11 +1,11 @@
 import { expect, test } from 'vitest'
 import { fireEvent, screen } from '@testing-library/react'
-import { mockApi, renderApp, tess } from '../test-utils.tsx'
+import { emptyDashboard, mockApi, renderApp, tess } from '../test-utils.tsx'
 
 const type = (label: string, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } })
 
-test('log in sends credentials, then shows the user on the landing page', async () => {
+test('log in sends credentials, then shows the user their dashboard', async () => {
   let sent: unknown
   mockApi({
     'GET /api/auth/me': () => [401],
@@ -13,6 +13,7 @@ test('log in sends credentials, then shows the user on the landing page', async 
       sent = body
       return [200, tess]
     },
+    'GET /api/dashboard': () => [200, emptyDashboard],
   })
   renderApp('/auth')
 
@@ -21,7 +22,7 @@ test('log in sends credentials, then shows the user on the landing page', async 
   fireEvent.submit(screen.getByLabelText('Email').closest('form')!)
 
   await screen.findByText('Tess')
-  screen.getByRole('heading', { name: /Don't sweat it/ })
+  await screen.findByRole('heading', { name: 'Dashboard' })
   expect(sent).toEqual({ email: 'tess@example.com', password: 'password123' })
 })
 

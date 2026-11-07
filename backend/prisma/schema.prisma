@@ -44,24 +44,34 @@ model List {
 }
 
 model Item {
-  id        String    @id @default(cuid())
-  name      String
-  quantity  Int       @default(1)
-  listId    String
-  list      List      @relation(fields: [listId], references: [id], onDelete: Cascade)
-  checkedAt DateTime? // null = still to buy
-  createdAt DateTime  @default(now())
+  id         String    @id @default(cuid())
+  name       String
+  quantity   Int       @default(1)
+  listId     String
+  list       List      @relation(fields: [listId], references: [id], onDelete: Cascade)
+  checkedAt  DateTime? // null = still to buy
+  priceCents Int? // unit price in euro cents; null = not entered
+  createdAt  DateTime  @default(now())
+  purchase   Purchase?
 
   @@index([listId])
 }
 
-// One row per checked-off item; suggestions are computed from this history.
+// One row per checked-off item: the source of truth for spend, habits and suggestions.
+// Survives deletion of its item or list (itemId becomes null). Written only by syncPurchase.
 model Purchase {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String // lowercased + trimmed by the app so "Milk " == "milk"
+  itemId      String?  @unique // the checked item this records; null once the item is deleted
+  item        Item?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  name        String // productKey(): lowercased + trimmed, so "Milk " == "milk"
+  displayName String   @default("") // name as last typed, for display; grouping uses `name`
+  quantity    Int      @default(1)
+  priceCents  Int? // unit price in euro cents; null = not entered
+  listName    String? // snapshot at purchase time, kept after the list is deleted
   purchasedAt DateTime @default(now())
 
   @@index([userId, name, purchasedAt])
+  @@index([userId, purchasedAt])
 }

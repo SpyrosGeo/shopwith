@@ -52,3 +52,6 @@ export async function requireUser(request: FastifyRequest, reply: FastifyReply) 
   }
   request.user = session.user
 }
+
+// Only call after requireUser has run (e.g. as the plugin's preHandler): it guarantees the user is set.
+export const userId = (request: FastifyRequest) => request.user!.id

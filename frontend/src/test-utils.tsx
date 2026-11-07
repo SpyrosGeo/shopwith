@@ -30,3 +30,9 @@ export function mockApi(routes: Record<string, Handler>) {
 }
 
 export const tess = { id: 'u1', email: 'tess@example.com', name: 'Tess' }
+
+const months = ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11']
+export const emptyDashboard = {
+  months: months.map((month) => ({ month, totalCents: 0, itemCount: 0, unpricedCount: 0 })),
+  activeLists: [],
+}

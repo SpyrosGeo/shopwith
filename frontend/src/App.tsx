@@ -1,14 +1,21 @@
-import { Link, Route, Routes, useNavigate } from 'react-router'
+import type { ReactNode } from 'react'
+import { Link, Navigate, NavLink, Route, Routes, useNavigate } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, useMe } from './api.ts'
+import { outlineButton } from './ui.tsx'
 import Landing from './pages/Landing.tsx'
 import Auth from './pages/Auth.tsx'
+import Dashboard from './pages/Dashboard.tsx'
+import Lists from './pages/Lists.tsx'
+import ListDetail from './pages/ListDetail.tsx'
 
-const outlineButton =
-  'inline-flex min-h-11 items-center rounded border border-white px-4 text-sm font-medium transition-colors hover:bg-white hover:text-black'
+const navItems = [
+  { to: '/', label: 'Home' },
+  { to: '/lists', label: 'Lists' },
+]
 
 function App() {
-  const { data: me } = useMe()
+  const { data: me, isPending: mePending } = useMe()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -21,13 +28,19 @@ function App() {
     },
   })
 
+  // Render nothing until we know who is logged in, so logged-out pages don't flash.
+  const loggedIn = (page: ReactNode) => (mePending ? null : me ? page : <Navigate to="/auth" replace />)
+
   return (
     // dvh, not vh: mobile browsers count the area behind the address bar in 100vh
     <div className="flex min-h-dvh flex-col">
-      <header className="flex items-center justify-between border-b border-white/10 px-4 py-3 sm:px-6 sm:py-4">
-        <Link to="/" className="text-xl font-bold tracking-tight">
-          shopwith
-        </Link>
+      <header className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-3 sm:px-6 sm:py-4">
+        <div className="flex items-center gap-6">
+          <Link to="/" className="text-xl font-bold tracking-tight">
+            shopwith
+          </Link>
+          {me && <Nav className="hidden gap-4 sm:flex" />}
+        </div>
         {me ? (
           <div className="flex min-w-0 items-center gap-3">
             <span className="truncate text-sm text-white/60">{me.name}</span>
@@ -40,7 +53,7 @@ function App() {
               type="button"
               onClick={() => logout.mutate()}
               disabled={logout.isPending}
-              className={`${outlineButton} disabled:opacity-50`}
+              className={outlineButton}
             >
               Log out
             </button>
@@ -52,13 +65,39 @@ function App() {
         )}
       </header>
 
-      <main className="flex flex-1 flex-col">
+      {/* Bottom padding keeps content clear of the mobile tab bar */}
+      <main className={`flex flex-1 flex-col ${me ? 'pb-16 sm:pb-0' : ''}`}>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={mePending ? null : me ? <Dashboard /> : <Landing />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/lists" element={loggedIn(<Lists />)} />
+          <Route path="/lists/:id" element={loggedIn(<ListDetail />)} />
         </Routes>
       </main>
+
+      {me && (
+        <Nav className="fixed inset-x-0 bottom-0 grid grid-cols-2 border-t border-white/10 bg-black pb-[env(safe-area-inset-bottom)] sm:hidden" />
+      )}
     </div>
+  )
+}
+
+function Nav({ className }: { className: string }) {
+  return (
+    <nav aria-label="Main" className={className}>
+      {navItems.map(({ to, label }) => (
+        <NavLink
+          key={to}
+          to={to}
+          end={to === '/'}
+          className={({ isActive }) =>
+            `flex min-h-11 items-center justify-center text-sm font-medium ${isActive ? 'text-white' : 'text-white/50 hover:text-white'}`
+          }
+        >
+          {label}
+        </NavLink>
+      ))}
+    </nav>
   )
 }
 

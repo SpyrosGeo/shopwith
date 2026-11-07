@@ -1,7 +1,8 @@
-import { useState, type InputHTMLAttributes } from 'react'
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { api, type User } from '../api.ts'
+import { Field, primaryButton } from '../ui.tsx'
 
 type Mode = 'login' | 'register'
 
@@ -71,27 +72,13 @@ function Auth() {
           <button
             type="submit"
             disabled={submit.isPending}
-            className="min-h-11 rounded bg-white font-medium text-black transition-opacity disabled:opacity-50"
+            className={primaryButton}
           >
             {mode === 'login' ? 'Log in' : 'Create account'}
           </button>
         </form>
       </div>
     </section>
-  )
-}
-
-function Field({ label, ...input }: { label: string } & InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <label className="flex flex-col gap-1 text-sm text-white/80">
-      {label}
-      {/* text-base (16px): iOS zooms the page when focusing inputs with smaller text */}
-      <input
-        required
-        {...input}
-        className="min-h-11 rounded border border-white/20 bg-transparent px-3 text-base text-white focus:border-white focus:outline-none"
-      />
-    </label>
   )
 }
 
