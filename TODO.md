@@ -28,10 +28,18 @@ your purchases and tracks spending. Single user (no shared lists), mobile-first,
 - [x] Navigation: bottom tab bar on mobile, top nav from `sm:` — Home, Lists (Insights and Settings get added in M4/M6)
 
 ### 3. Suggestions ("running low")
-- [ ] Due rule: names with ≥3 purchases; due when days since last purchase ≥ median interval;
-      skip names already on an active list
-- [ ] Shown on the dashboard ("Running low") and as chips in a list's add-item box; one tap adds
-- [ ] Dismiss snoozes a name for one more interval (needs per-name snooze storage)
+Terms (Due, Purchase day, Median interval, Snooze, UserProduct): see `GLOSSARY.md`. Storage: `docs/adr/0001-userproduct-holds-per-product-settings.md`.
+- [ ] `due(userId, now)` in `backend/src/purchases.ts`: ≥3 Purchase days (same UTC day = one), due when
+      time since last ≥ median interval, not on any list as an unchecked item, not snoozed;
+      most overdue first; returns display name, median interval, last price
+- [ ] `UserProduct (userId, name, snoozedUntil)` table, unique `(userId, name)`, row created on first use
+- [ ] `GET /api/suggestions` (ranked due Products) and `POST /api/suggestions/snooze { name }`
+      (snoozedUntil = now + median interval)
+- [ ] `POST /api/suggestions/add { name }`: adds display name, qty 1, last price to the newest active list,
+      creating a "Shopping" list if none; rule lives in `backend/src/lists.ts`
+- [ ] Dashboard "Running low" section (max 8, hidden when empty): tap adds, × snoozes
+- [ ] Suggestion chips in a list's add-item box (max 5): tap adds to that list via the add-item endpoint
+      (pre-filled), × snoozes
 
 ### 4. Insights
 - [ ] Top items by count and by spend
