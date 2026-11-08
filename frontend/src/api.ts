@@ -11,6 +11,7 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+  // Keep relative: the Vite dev proxy and the prod nginx both route /api to the backend.
   const res = await fetch(`/api${path}`, {
     method: init.method ?? 'GET',
     // Only send a JSON header with a body: Fastify rejects an empty body declared as JSON.

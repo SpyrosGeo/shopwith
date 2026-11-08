@@ -66,6 +66,9 @@ Terms (Due, Purchase day, Median interval, Snooze, UserProduct): see `GLOSSARY.m
 - Shared lists, offline/PWA, user-defined categories, per-category budgets, "never suggest",
   name aliases/merging, per-user timezone for month boundaries
 
+## Deployment
+- [ ] Postgres backups for prod (nightly `pg_dump` cron or Proxmox VM backup); the `pgdata` volume is the only copy
+
 ## Auth (no hard deadline; pick up as features need them)
 - [ ] Rate-limit `POST /api/auth/login` with `@fastify/rate-limit` before any public deploy (password guessing is unlimited now)
 - [ ] Password reset
