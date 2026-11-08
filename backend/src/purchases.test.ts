@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest'
 import { prisma } from './db.js'
 import { testUser } from './test-helpers.js'
-import { monthlySpend, productKey, products } from './purchases.js'
+import { due, monthlySpend, productKey, products } from './purchases.js'
 
 // Seeds a Purchase row directly, at a chosen time.
 const bought = (userId: string, name: string, purchasedAt: string, rest: { quantity?: number; priceCents?: number } = {}) =>
@@ -54,4 +54,74 @@ test("readers only see the user's own purchases", async () => {
 
   expect(await products(bob)).toEqual([])
   expect((await monthlySpend(bob, now)).at(-1)!.totalCents).toBe(0)
+  expect(await due(bob, now)).toEqual([])
+})
+
+const DAY = 24 * 60 * 60 * 1000
+// `now` (2026-03-10T12:00Z) minus whole days, as an ISO string for bought().
+const daysAgo = (d: number) => new Date(now.getTime() - d * DAY).toISOString()
+
+test('due: at least 3 Purchase days and time since last >= median interval', async () => {
+  const { id } = await testUser()
+  for (const d of [7, 5, 3]) await bought(id, 'Milk', daysAgo(d), { priceCents: 129 }) // gaps 2d, last 3d ago
+  for (const d of [5, 3, 1]) await bought(id, 'Bread', daysAgo(d)) // gaps 2d, last 1d ago: not yet
+  for (const d of [9, 2]) await bought(id, 'Salt', daysAgo(d)) // only 2 Purchase days
+
+  expect(await due(id, now)).toEqual([{ name: 'Milk', medianIntervalMs: 2 * DAY, lastPriceCents: 129 }])
+})
+
+test('due: purchases on the same UTC day count as one Purchase day', async () => {
+  const { id } = await testUser()
+  await bought(id, 'Milk', '2026-03-01T08:00:00Z')
+  await bought(id, 'Milk', '2026-03-01T20:00:00Z')
+  await bought(id, 'Milk', '2026-03-03T08:00:00Z')
+
+  expect(await due(id, now)).toEqual([])
+})
+
+test('due: time since last counts from the last Purchase, not the start of its day', async () => {
+  const { id } = await testUser()
+  await bought(id, 'Milk', '2026-03-01T08:00:00Z')
+  await bought(id, 'Milk', '2026-03-03T08:00:00Z')
+  await bought(id, 'Milk', '2026-03-05T08:00:00Z')
+  await bought(id, 'Milk', '2026-03-05T20:00:00Z') // median 48h; last Purchase 03-05 20:00
+
+  expect(await due(id, new Date('2026-03-07T10:00:00Z'))).toEqual([]) // 38h since last
+  expect(await due(id, new Date('2026-03-07T20:00:00Z'))).toEqual([
+    { name: 'Milk', medianIntervalMs: 2 * DAY, lastPriceCents: null },
+  ])
+})
+
+test('due: most overdue first, latest casing and known price', async () => {
+  const { id } = await testUser()
+  for (const d of [6, 4, 2]) await bought(id, 'Eggs', daysAgo(d)) // 2d / 2d = 1
+  for (const d of [5, 4, 3]) await bought(id, 'coffee', daysAgo(d), { priceCents: 899 })
+  await bought(id, 'Coffee', daysAgo(2)) // unpriced; gaps 1d, 1d, 1d; last 2d ago: 2
+
+  expect(await due(id, now)).toEqual([
+    { name: 'Coffee', medianIntervalMs: DAY, lastPriceCents: 899 },
+    { name: 'Eggs', medianIntervalMs: 2 * DAY, lastPriceCents: null },
+  ])
+})
+
+test('due: even number of gaps uses the average of the middle two', async () => {
+  const { id } = await testUser()
+  for (const d of [20, 15, 12, 11, 10]) await bought(id, 'Rice', daysAgo(d)) // gaps 5,3,1,1 -> median 2d
+
+  expect(await due(id, now)).toEqual([{ name: 'Rice', medianIntervalMs: 2 * DAY, lastPriceCents: null }])
+})
+
+test('due: excludes products on a list as an unchecked item', async () => {
+  const { id } = await testUser()
+  for (const d of [7, 5, 3]) await bought(id, 'Milk', daysAgo(d))
+  for (const d of [7, 5, 3]) await bought(id, 'Eggs', daysAgo(d))
+  await prisma.list.create({
+    data: {
+      userId: id,
+      name: 'Weekly',
+      items: { create: [{ name: ' MILK ' }, { name: 'Eggs', checkedAt: now }] }, // checked Eggs don't count
+    },
+  })
+
+  expect((await due(id, now)).map((s) => s.name)).toEqual(['Eggs'])
 })

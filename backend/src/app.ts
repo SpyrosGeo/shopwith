@@ -6,6 +6,7 @@ import { authRoutes } from './routes/auth/auth.js'
 import { listRoutes } from './routes/lists/list.js'
 import { dashboardRoutes } from './routes/dashboard/dashboard.js'
 import { productRoutes } from './routes/products/products.js'
+import { suggestionRoutes } from './routes/suggestions/suggestions.js'
 
 export function buildApp() {
   const app = Fastify({ logger: process.env['NODE_ENV'] !== 'test' })
@@ -32,6 +33,7 @@ export function buildApp() {
   app.register(listRoutes, { prefix: '/api/lists' })
   app.register(dashboardRoutes, { prefix: '/api/dashboard' })
   app.register(productRoutes, { prefix: '/api/products' })
+  app.register(suggestionRoutes, { prefix: '/api/suggestions' })
 
   return app
 }

@@ -103,3 +103,50 @@ export async function monthlySpend(userId: string, now = new Date()) {
   }
   return [...months.values()]
 }
+
+export type Suggestion = { name: string; medianIntervalMs: number; lastPriceCents: number | null }
+
+// Due Products, most overdue first (see GLOSSARY.md "Due"): at least 3 Purchase days, time since the last
+// one ≥ the median gap between them, and not on any list as an unchecked item.
+export async function due(userId: string, now = new Date()): Promise<Suggestion[]> {
+  const bought = await prisma.purchase.findMany({
+    where: { userId },
+    orderBy: { purchasedAt: 'asc' },
+    select: { name: true, displayName: true, priceCents: true, purchasedAt: true },
+  })
+  const onList = new Set(
+    (await prisma.item.findMany({ where: { list: { userId }, checkedAt: null }, select: { name: true } })).map((i) =>
+      productKey(i.name),
+    ),
+  )
+
+  // Oldest first, so the last write per name is the latest casing and price.
+  const byName = new Map<
+    string,
+    { displayName: string; lastPriceCents: number | null; lastAt: number; days: Map<string, number> }
+  >()
+  for (const p of bought) {
+    const product = byName.get(p.name) ?? { displayName: '', lastPriceCents: null, lastAt: 0, days: new Map() }
+    product.displayName = p.displayName || p.name
+    product.lastPriceCents = p.priceCents ?? product.lastPriceCents // skips unpriced purchases
+    product.lastAt = p.purchasedAt.getTime() // the actual last Purchase, not the start of its day
+    const day = p.purchasedAt.toISOString().slice(0, 10) // same UTC day = one Purchase day
+    if (!product.days.has(day)) product.days.set(day, p.purchasedAt.getTime())
+    byName.set(p.name, product)
+  }
+
+  // TODO snooze: exclude UserProduct.snoozedUntil > now
+  return [...byName]
+    .filter(([name, p]) => p.days.size >= 3 && !onList.has(name))
+    .map(([, p]) => {
+      const times = [...p.days.values()]
+      const gaps = times.slice(1).map((t, i) => t - times[i]!).sort((a, b) => a - b)
+      const mid = gaps.length >> 1
+      const median = gaps.length % 2 ? gaps[mid]! : (gaps[mid - 1]! + gaps[mid]!) / 2
+      const overdue = (now.getTime() - p.lastAt) / median
+      return { name: p.displayName, medianIntervalMs: median, lastPriceCents: p.lastPriceCents, overdue }
+    })
+    .filter((p) => p.overdue >= 1)
+    .sort((a, b) => b.overdue - a.overdue)
+    .map(({ overdue, ...suggestion }) => suggestion)
+}
