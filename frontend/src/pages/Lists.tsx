@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router'
 import { api, useLists, type List } from '../api.ts'
-import { card, Field, primaryButton } from '../ui.tsx'
+import { card, Field, primaryButton, Skeleton } from '../ui.tsx'
 
 function Lists() {
   const { data: lists, isPending, isError } = useLists()
@@ -19,7 +19,7 @@ function Lists() {
 
   return (
     <section className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-8 sm:px-6">
-      <h1 className="text-3xl font-semibold">Lists</h1>
+      <h1 className="font-tag text-4xl font-bold">Lists</h1>
 
       <form
         className="flex items-end gap-2"
@@ -34,28 +34,44 @@ function Lists() {
         </button>
       </form>
       {create.isError && (
-        <p role="alert" className="text-sm text-red-500">
+        <p role="alert" className="text-sm text-alarm">
           {create.error.message}
         </p>
       )}
 
       {isPending ? (
-        <p className="text-white/60">Loading…</p>
+        <Skeleton />
       ) : isError ? (
-        <p role="alert" className="text-red-500">
+        <p role="alert" className="text-alarm">
           Could not load your lists
         </p>
       ) : lists.length === 0 ? (
-        <p className="text-white/60">No lists yet. Create one above.</p>
+        <p className="text-ink/60">No lists yet. Create one above.</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {lists.map((list) => (
             <li key={list.id}>
-              <Link to={`/lists/${list.id}`} className={`${card} flex items-center justify-between gap-4 hover:border-white/30`}>
-                <span className="truncate font-medium">{list.name}</span>
-                <span className="shrink-0 text-sm text-white/60">
-                  {list.remaining === 0 ? 'Nothing to buy' : `${list.remaining} to buy`}
+              <Link to={`/lists/${list.id}`} className={`${card} flex flex-col gap-3 ring-ink/20 hover:ring-1`}>
+                <span className="flex items-center justify-between gap-4">
+                  <span className="truncate font-bold">{list.name}</span>
+                  <span className="shrink-0 text-sm text-ink/60">
+                    {list.total === 0 ? 'Empty list' : list.remaining === 0 ? 'All bought' : `${list.remaining} left`}
+                  </span>
                 </span>
+                {list.total > 0 && (
+                  <span
+                    role="progressbar"
+                    aria-label={`${list.name} progress`}
+                    aria-valuenow={list.total - list.remaining}
+                    aria-valuemax={list.total}
+                    className="h-1 overflow-hidden rounded-full bg-ink/10"
+                  >
+                    <span
+                      className="block h-full bg-basil"
+                      style={{ width: `${((list.total - list.remaining) / list.total) * 100}%` }}
+                    />
+                  </span>
+                )}
               </Link>
             </li>
           ))}

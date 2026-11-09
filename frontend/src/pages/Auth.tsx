@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { api, type User } from '../api.ts'
 import { Field, primaryButton } from '../ui.tsx'
 
 type Mode = 'login' | 'register'
 
 function Auth() {
-  const [mode, setMode] = useState<Mode>('login')
+  const [params] = useSearchParams()
+  const [mode, setMode] = useState<Mode>(params.get('mode') === 'register' ? 'register' : 'login')
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -23,11 +24,11 @@ function Auth() {
   return (
     <section className="flex flex-1 justify-center px-4 py-10 sm:px-6">
       <div className="w-full max-w-sm">
-        <h1 className="mb-6 text-3xl font-semibold">
+        <h1 className="mb-6 font-tag text-4xl font-bold">
           {mode === 'login' ? 'Welcome back' : 'Create your account'}
         </h1>
 
-        <div className="mb-6 grid grid-cols-2 gap-1 rounded border border-white/20 p-1">
+        <div className="mb-6 grid grid-cols-2 gap-1 rounded-full bg-shelf p-1 ring-1 ring-ink/10">
           {(['login', 'register'] as const).map((m) => (
             <button
               key={m}
@@ -37,8 +38,8 @@ function Auth() {
                 setMode(m)
                 submit.reset()
               }}
-              className={`min-h-11 rounded text-sm font-medium transition-colors ${
-                mode === m ? 'bg-white text-black' : 'text-white/60 hover:text-white'
+              className={`min-h-11 rounded-full text-sm font-medium transition-colors ${
+                mode === m ? 'bg-ink text-aisle' : 'text-ink/60 hover:text-ink'
               }`}
             >
               {m === 'login' ? 'Log in' : 'Register'}
@@ -64,7 +65,7 @@ function Auth() {
           />
 
           {submit.error && (
-            <p role="alert" className="text-sm text-red-500">
+            <p role="alert" className="text-sm text-alarm">
               {submit.error.message}
             </p>
           )}

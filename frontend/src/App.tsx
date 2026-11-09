@@ -34,18 +34,18 @@ function App() {
   return (
     // dvh, not vh: mobile browsers count the area behind the address bar in 100vh
     <div className="flex min-h-dvh flex-col">
-      <header className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-3 sm:px-6 sm:py-4">
+      <header className="flex items-center justify-between gap-4 border-b border-ink/10 px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center gap-6">
-          <Link to="/" className="text-xl font-bold tracking-tight">
+          <Link to="/" className="font-tag text-2xl font-bold">
             shopwith
           </Link>
           {me && <Nav className="hidden gap-4 sm:flex" />}
         </div>
         {me ? (
           <div className="flex min-w-0 items-center gap-3">
-            <span className="truncate text-sm text-white/60">{me.name}</span>
+            <span className="hidden truncate text-sm text-ink/60 sm:inline">{me.name}</span>
             {logout.isError && (
-              <span role="alert" className="text-xs text-red-500">
+              <span role="alert" className="text-xs text-alarm">
                 Log out failed
               </span>
             )}
@@ -68,7 +68,7 @@ function App() {
       {/* Bottom padding keeps content clear of the mobile tab bar */}
       <main className={`flex flex-1 flex-col ${me ? 'pb-16 sm:pb-0' : ''}`}>
         <Routes>
-          <Route path="/" element={mePending ? null : me ? <Dashboard /> : <Landing />} />
+          <Route path="/" element={mePending ? null : me ? <Dashboard name={me.name} /> : <Landing />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/lists" element={loggedIn(<Lists />)} />
           <Route path="/lists/:id" element={loggedIn(<ListDetail />)} />
@@ -76,7 +76,7 @@ function App() {
       </main>
 
       {me && (
-        <Nav className="fixed inset-x-0 bottom-0 grid grid-cols-2 border-t border-white/10 bg-black pb-[env(safe-area-inset-bottom)] sm:hidden" />
+        <Nav className="fixed inset-x-0 bottom-0 grid grid-cols-2 border-t border-ink/10 bg-shelf pb-[env(safe-area-inset-bottom)] sm:hidden" />
       )}
     </div>
   )
@@ -91,7 +91,7 @@ function Nav({ className }: { className: string }) {
           to={to}
           end={to === '/'}
           className={({ isActive }) =>
-            `flex min-h-11 items-center justify-center text-sm font-medium ${isActive ? 'text-white' : 'text-white/50 hover:text-white'}`
+            `flex min-h-11 items-center justify-center text-sm font-medium ${isActive ? 'text-ink underline decoration-basil decoration-2 underline-offset-8' : 'text-ink/50 hover:text-ink'}`
           }
         >
           {label}

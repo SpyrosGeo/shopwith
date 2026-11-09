@@ -1,11 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router'
 import {
   api,
   ApiError,
   centsToInput,
-  formatEuro,
   parseEuro,
   useList,
   useListMutation,
@@ -13,21 +12,65 @@ import {
   type Item,
   type ListWithItems,
 } from '../api.ts'
-import { Field, outlineButton, primaryButton } from '../ui.tsx'
+import { dangerButton, Field, outlineButton, Price, primaryButton, Skeleton, Toast } from '../ui.tsx'
 
 type ItemFields = { name: string; quantity: number; priceCents: number | null }
 
 const PRICE_ERROR = 'Enter a price like 1.49'
+const UNDO_MS = 5000
 
 function ListDetail() {
   const { id = '' } = useParams()
   const { data: list, isPending, error } = useList(id)
+  const queryClient = useQueryClient()
 
-  if (isPending) return <p className="p-6 text-white/60">Loading…</p>
+  // Item deletes wait UNDO_MS before reaching the server; until then the item is only hidden.
+  const [pending, setPending] = useState<Item | null>(null)
+  const timer = useRef<{ itemId: string; handle: ReturnType<typeof setTimeout> } | null>(null)
+  const removeItem = useListMutation(id, (itemId: string) => api(`/lists/${id}/items/${itemId}`, { method: 'DELETE' }))
+
+  const commitDelete = () => {
+    if (!timer.current) return
+    clearTimeout(timer.current.handle)
+    removeItem.mutate(timer.current.itemId)
+    timer.current = null
+    setPending(null)
+  }
+  const deleteItem = (item: Item) => {
+    commitDelete() // a second delete sends the first one right away
+    timer.current = { itemId: item.id, handle: setTimeout(commitDelete, UNDO_MS) }
+    setPending(item)
+  }
+  const undo = () => {
+    if (timer.current) clearTimeout(timer.current.handle)
+    timer.current = null
+    setPending(null)
+  }
+
+  // Leaving the page sends a pending delete instead of dropping it.
+  useEffect(
+    () => () => {
+      if (!timer.current) return
+      clearTimeout(timer.current.handle)
+      api(`/lists/${id}/items/${timer.current.itemId}`, { method: 'DELETE' }).finally(() =>
+        [['list', id], ['lists'], ['dashboard']].forEach((queryKey) => queryClient.invalidateQueries({ queryKey })),
+      )
+      timer.current = null
+    },
+    [id, queryClient],
+  )
+
+  if (isPending) {
+    return (
+      <section className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
+        <Skeleton />
+      </section>
+    )
+  }
   if (error) {
     return (
       <div className="flex flex-col items-start gap-3 p-6">
-        <p role="alert" className="text-red-500">
+        <p role="alert" className="text-alarm">
           {error instanceof ApiError && error.status === 404 ? 'List not found' : 'Could not load this list'}
         </p>
         <Link to="/lists" className="underline">
@@ -37,38 +80,71 @@ function ListDetail() {
     )
   }
 
-  const toBuy = list.items.filter((i) => !i.checkedAt)
-  const bought = list.items.filter((i) => i.checkedAt)
+  const items = list.items.filter((i) => i.id !== pending?.id)
+  const toBuy = items.filter((i) => !i.checkedAt)
+  const bought = items.filter((i) => i.checkedAt)
+  const toGoCents = toBuy.reduce((sum, i) => sum + (i.priceCents ?? 0) * i.quantity, 0)
 
   return (
-    <section className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    <section className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 pt-6 sm:px-6 sm:pt-8">
       <ListHeader list={list} />
-      <AddItemForm listId={list.id} />
+
+      {items.length > 0 && (
+        <p className="-mt-4 flex flex-wrap items-center gap-2 text-ink/70">
+          {toBuy.length} of {items.length} left
+          {toGoCents > 0 && (
+            <>
+              <Price cents={toGoCents} /> to go
+            </>
+          )}
+        </p>
+      )}
 
       <div>
-        <h2 className="mb-1 text-sm text-white/60">To buy ({toBuy.length})</h2>
+        <h2 className="mb-2 text-sm text-ink/60">To buy ({toBuy.length})</h2>
         {toBuy.length === 0 ? (
-          <p className="py-3 text-white/60">{bought.length ? 'All bought!' : 'Nothing here yet. Add an item above.'}</p>
+          <p className="py-3 text-ink/60">{bought.length ? 'All bought!' : 'Nothing here yet. Add your first item below.'}</p>
         ) : (
-          <ul>
+          <ul className="flex flex-col gap-1">
             {toBuy.map((item) => (
-              <ItemRow key={item.id} listId={list.id} item={item} />
+              <ItemRow key={item.id} listId={list.id} item={item} onDelete={deleteItem} />
             ))}
           </ul>
         )}
       </div>
 
       {bought.length > 0 && (
-        <details open>
-          <summary className="mb-1 min-h-11 cursor-pointer content-center text-sm text-white/60">
+        // Collapsed while shopping, open once everything is bought.
+        <details open={toBuy.length === 0}>
+          <summary className="mb-2 min-h-11 cursor-pointer content-center text-sm text-ink/60">
             Bought ({bought.length})
           </summary>
-          <ul>
+          <ul className="flex flex-col gap-1">
             {bought.map((item) => (
-              <ItemRow key={item.id} listId={list.id} item={item} />
+              <ItemRow key={item.id} listId={list.id} item={item} onDelete={deleteItem} />
             ))}
           </ul>
         </details>
+      )}
+
+      {removeItem.isError && (
+        <p role="alert" className="text-sm text-alarm">
+          {removeItem.error.message}
+        </p>
+      )}
+
+      {/* mt-auto + sticky: sits at the bottom of the page, in thumb reach, above the mobile tab bar */}
+      <div className="sticky bottom-[calc(2.75rem+1px+env(safe-area-inset-bottom))] z-10 -mx-4 mt-auto border-t border-ink/10 bg-aisle/95 px-4 py-3 backdrop-blur sm:bottom-0 sm:-mx-6 sm:px-6">
+        <AddItemForm listId={list.id} />
+      </div>
+
+      {pending && (
+        <Toast>
+          <span className="truncate">Deleted {pending.name}</span>
+          <button type="button" onClick={undo} className="min-h-11 shrink-0 px-2 font-bold text-tag">
+            Undo
+          </button>
+        </Toast>
       )}
     </section>
   )
@@ -114,32 +190,36 @@ function ListHeader({ list }: { list: ListWithItems }) {
   }
 
   return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <Link to="/lists" className="text-sm text-white/60 hover:text-white">
-          ← Lists
-        </Link>
-        <h1>
-          <button
-            type="button"
-            onClick={() => setRenaming(true)}
-            aria-label={`Rename ${list.name}`}
-            className="max-w-full truncate text-left text-3xl font-semibold"
+    <div className="flex flex-col gap-1">
+      <Link to="/lists" className="self-start text-sm text-ink/60 hover:text-ink">
+        ← Lists
+      </Link>
+      <div className="flex items-start justify-between gap-3">
+        <h1 className="min-w-0 truncate font-tag text-4xl font-bold">{list.name}</h1>
+        <details className="relative shrink-0">
+          <summary
+            aria-label="List options"
+            className="flex size-11 cursor-pointer list-none items-center justify-center rounded-full text-2xl leading-none hover:bg-ink/5 [&::-webkit-details-marker]:hidden"
           >
-            {list.name}
-          </button>
-        </h1>
+            ⋯
+          </summary>
+          <div className="absolute right-0 z-20 mt-1 flex w-44 flex-col gap-2 rounded-md bg-shelf p-2 shadow-lg ring-1 ring-ink/10">
+            <button type="button" onClick={() => setRenaming(true)} aria-label={`Rename ${list.name}`} className={outlineButton}>
+              Rename
+            </button>
+            <button
+              type="button"
+              disabled={remove.isPending}
+              onClick={() => confirm(`Delete "${list.name}"? Your spending history is kept.`) && remove.mutate()}
+              className={dangerButton}
+            >
+              Delete list
+            </button>
+          </div>
+        </details>
       </div>
-      <button
-        type="button"
-        disabled={remove.isPending}
-        onClick={() => confirm(`Delete "${list.name}"? Your spending history is kept.`) && remove.mutate()}
-        className={`${outlineButton} shrink-0 border-red-500 text-red-500 hover:bg-red-500 hover:text-white`}
-      >
-        Delete list
-      </button>
       {(remove.isError || rename.isError) && (
-        <p role="alert" className="text-sm text-red-500">
+        <p role="alert" className="text-sm text-alarm">
           {(remove.error ?? rename.error)?.message}
         </p>
       )}
@@ -226,7 +306,7 @@ function AddItemForm({ listId }: { listId: string }) {
         Add
       </button>
       {(error || add.isError) && (
-        <p role="alert" className="col-span-full text-sm text-red-500">
+        <p role="alert" className="col-span-full text-sm text-alarm">
           {error || add.error?.message}
         </p>
       )}
@@ -234,7 +314,7 @@ function AddItemForm({ listId }: { listId: string }) {
   )
 }
 
-function ItemRow({ listId, item }: { listId: string; item: Item }) {
+function ItemRow({ listId, item, onDelete }: { listId: string; item: Item; onDelete: (item: Item) => void }) {
   const [editing, setEditing] = useState(false)
   const checked = item.checkedAt !== null
 
@@ -249,10 +329,10 @@ function ItemRow({ listId, item }: { listId: string; item: Item }) {
     }),
   )
 
-  if (editing) return <ItemEditor listId={listId} item={item} onDone={() => setEditing(false)} />
+  if (editing) return <ItemEditor listId={listId} item={item} onDone={() => setEditing(false)} onDelete={onDelete} />
 
   return (
-    <li className="flex items-center gap-1 border-b border-white/10">
+    <li className="flex items-center gap-1 rounded-sm bg-shelf pr-3">
       {/* The whole 44px box is the tap target, not just the small checkbox */}
       <label className="flex size-11 shrink-0 cursor-pointer items-center justify-center">
         <input
@@ -260,7 +340,7 @@ function ItemRow({ listId, item }: { listId: string; item: Item }) {
           checked={checked}
           onChange={(e) => toggle.mutate(e.target.checked)}
           aria-label={`${checked ? 'Unmark' : 'Mark'} ${item.name} as bought`}
-          className="size-5 accent-red-600"
+          className="size-5 accent-basil"
         />
       </label>
       <button
@@ -269,25 +349,23 @@ function ItemRow({ listId, item }: { listId: string; item: Item }) {
         aria-label={`Edit ${item.name}`}
         className="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-3 text-left"
       >
-        <span className={`truncate ${checked ? 'text-white/40 line-through' : ''}`}>
+        <span className={`truncate ${checked ? 'text-ink/40 line-through' : ''}`}>
           {item.name}
-          {item.quantity > 1 && <span className="text-white/60"> ×{item.quantity}</span>}
+          {item.quantity > 1 && <span className="text-ink/60"> ×{item.quantity}</span>}
         </span>
-        {item.priceCents !== null && (
-          <span className="shrink-0 text-sm text-white/60">{formatEuro(item.priceCents * item.quantity)}</span>
-        )}
+        {item.priceCents !== null && <Price cents={item.priceCents * item.quantity} />}
       </button>
       {checked && item.priceCents === null && (
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="min-h-11 shrink-0 px-2 text-sm text-amber-400 hover:underline"
+          className="min-h-11 shrink-0 px-2 text-sm underline decoration-tag decoration-2 underline-offset-4"
         >
           Add price
         </button>
       )}
       {toggle.isError && (
-        <span role="alert" className="text-xs text-red-500">
+        <span role="alert" className="text-xs text-alarm">
           Not saved
         </span>
       )}
@@ -295,14 +373,24 @@ function ItemRow({ listId, item }: { listId: string; item: Item }) {
   )
 }
 
-function ItemEditor({ listId, item, onDone }: { listId: string; item: Item; onDone: () => void }) {
+function ItemEditor({
+  listId,
+  item,
+  onDone,
+  onDelete,
+}: {
+  listId: string
+  item: Item
+  onDone: () => void
+  onDelete: (item: Item) => void
+}) {
   const [error, setError] = useState('')
-  const url = `/lists/${listId}/items/${item.id}`
-  const save = useListMutation(listId, (fields: ItemFields) => api(url, { method: 'PATCH', body: fields }))
-  const remove = useListMutation(listId, () => api(url, { method: 'DELETE' }))
+  const save = useListMutation(listId, (fields: ItemFields) =>
+    api(`/lists/${listId}/items/${item.id}`, { method: 'PATCH', body: fields }),
+  )
 
   return (
-    <li className="border-b border-white/10 py-3">
+    <li className="rounded-sm bg-shelf p-3">
       <form
         className="grid grid-cols-[1fr_4.5rem_6rem] items-end gap-2"
         onSubmit={(e) => {
@@ -335,18 +423,13 @@ function ItemEditor({ listId, item, onDone }: { listId: string; item: Item; onDo
           <button type="button" onClick={onDone} className={outlineButton}>
             Cancel
           </button>
-          <button
-            type="button"
-            disabled={remove.isPending}
-            onClick={() => remove.mutate(undefined)}
-            className={`${outlineButton} border-red-500 text-red-500 hover:bg-red-500 hover:text-white`}
-          >
+          <button type="button" onClick={() => onDelete(item)} className={dangerButton}>
             Delete
           </button>
         </div>
-        {(error || save.isError || remove.isError) && (
-          <p role="alert" className="col-span-3 text-sm text-red-500">
-            {error || (save.error ?? remove.error)?.message}
+        {(error || save.isError) && (
+          <p role="alert" className="col-span-3 text-sm text-alarm">
+            {error || save.error?.message}
           </p>
         )}
       </form>

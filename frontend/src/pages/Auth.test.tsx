@@ -22,7 +22,7 @@ test('log in sends credentials, then shows the user their dashboard', async () =
   fireEvent.submit(screen.getByLabelText('Email').closest('form')!)
 
   await screen.findByText('Tess')
-  await screen.findByRole('heading', { name: 'Dashboard' })
+  await screen.findByRole('heading', { name: 'Hi, Tess' })
   expect(sent).toEqual({ email: 'tess@example.com', password: 'password123' })
 })
 

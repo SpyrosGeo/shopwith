@@ -12,8 +12,8 @@ test('shows lists with how much is left to buy', async () => {
   renderApp('/lists')
 
   expect((await screen.findByRole('link', { name: /Weekly/ })).getAttribute('href')).toBe('/lists/l1')
-  screen.getByText('2 to buy')
-  screen.getByText('Nothing to buy')
+  screen.getByText('2 left')
+  screen.getByText('Empty list')
 })
 
 test('creating a list opens it', async () => {

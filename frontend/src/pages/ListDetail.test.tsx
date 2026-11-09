@@ -51,7 +51,7 @@ const typeInEditor = (label: string, value: string) =>
 
 test('add item: price pre-filled from the last purchase of that product', async () => {
   const { sent } = setup([])
-  await screen.findByText('Nothing here yet. Add an item above.')
+  await screen.findByText('Nothing here yet. Add your first item below.')
   await waitFor(() => expect(document.querySelectorAll('datalist option')).toHaveLength(1))
 
   type('Item', 'oat milk')
@@ -64,7 +64,7 @@ test('add item: price pre-filled from the last purchase of that product', async 
 
 test('add item: a typed price wins over the pre-fill, and bad prices are rejected', async () => {
   const { sent } = setup([])
-  await screen.findByText('Nothing here yet. Add an item above.')
+  await screen.findByText('Nothing here yet. Add your first item below.')
 
   type('Price €', 'abc')
   type('Item', 'Oat Milk')
@@ -81,7 +81,7 @@ test('add item: a typed price wins over the pre-fill, and bad prices are rejecte
 test('checking an item off moves it to Bought right away', async () => {
   const { sent } = setup([item({ priceCents: 120, quantity: 2 })])
   await screen.findByText('To buy (1)')
-  screen.getByText(/2\.40/)
+  expect(screen.getAllByText(/2\.40/).length).toBeGreaterThan(0)
 
   fireEvent.click(screen.getByRole('checkbox', { name: 'Mark Milk as bought' }))
 
@@ -100,7 +100,7 @@ test('bought item without price offers "Add price", which opens the editor', asy
   await waitFor(() => expect(sent['patch']).toEqual({ name: 'Milk', quantity: 1, priceCents: 99 }))
 })
 
-test('edit and delete an item from the inline editor', async () => {
+test('edit an item from the inline editor', async () => {
   const { sent } = setup([item({ priceCents: 100 })])
   fireEvent.click(await screen.findByRole('button', { name: 'Edit Milk' }))
 
@@ -108,9 +108,30 @@ test('edit and delete an item from the inline editor', async () => {
   typeInEditor('Price €', '')
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   await waitFor(() => expect(sent['patch']).toEqual({ name: 'Milk', quantity: 1, priceCents: null }))
+})
 
+test('delete item waits for undo, then sends the delete', async () => {
+  const { sent } = setup([item({})])
   fireEvent.click(await screen.findByRole('button', { name: 'Edit Milk' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+  vi.useFakeTimers()
+  try {
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(screen.queryByRole('button', { name: 'Edit Milk' })).toBeNull()
+
+    // Undo brings it back and nothing is sent.
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    screen.getByRole('button', { name: 'Edit Milk' })
+    vi.advanceTimersByTime(5000)
+    expect('deleteItem' in sent).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Milk' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    vi.advanceTimersByTime(4999)
+    expect('deleteItem' in sent).toBe(false)
+    vi.advanceTimersByTime(1)
+  } finally {
+    vi.useRealTimers()
+  }
   await waitFor(() => expect('deleteItem' in sent).toBe(true))
 })
 
@@ -118,7 +139,8 @@ test('delete list asks first, then goes back to lists', async () => {
   const confirm = vi.fn(() => false)
   vi.stubGlobal('confirm', confirm)
   const { sent } = setup([])
-  fireEvent.click(await screen.findByRole('button', { name: 'Delete list' }))
+  fireEvent.click(await screen.findByLabelText('List options'))
+  fireEvent.click(screen.getByRole('button', { name: 'Delete list' }))
   expect(confirm).toHaveBeenCalled()
   expect('deleteList' in sent).toBe(false)
 
@@ -130,7 +152,8 @@ test('delete list asks first, then goes back to lists', async () => {
 
 test('rename list', async () => {
   const { sent } = setup([])
-  fireEvent.click(await screen.findByRole('button', { name: 'Rename Weekly' }))
+  fireEvent.click(await screen.findByLabelText('List options'))
+  fireEvent.click(screen.getByRole('button', { name: 'Rename Weekly' }))
   type('List name', 'Groceries')
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   await waitFor(() => expect(sent['rename']).toEqual({ name: 'Groceries' }))

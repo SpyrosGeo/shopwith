@@ -1,9 +1,37 @@
 @import "tailwindcss";
+@import "@fontsource/atkinson-hyperlegible/400.css";
+@import "@fontsource/atkinson-hyperlegible/700.css";
+@import "@fontsource/barlow-condensed/700.css";
+
+/* "Shelf tag": light for bright store aisles; yellow is reserved for prices, red for danger. */
+@theme {
+  --color-aisle: #eef2f1;
+  --color-shelf: #ffffff;
+  --color-ink: #14323a;
+  --color-tag: #ffd400;
+  --color-basil: #2f7d4f;
+  --color-alarm: #c8322b;
+  --font-sans: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --font-tag: "Barlow Condensed", system-ui, sans-serif;
+}
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
-  @apply bg-black text-white antialiased;
+  @apply bg-aisle text-ink antialiased;
+}
+
+:focus-visible {
+  @apply outline-2 outline-offset-2 outline-ink;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }
