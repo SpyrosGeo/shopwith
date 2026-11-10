@@ -63,10 +63,18 @@ Terms (Due, Purchase day, Median interval, Snooze, UserProduct): see `GLOSSARY.m
 - [ ] Columns: date, item name, category, quantity, unit price, line total, list name
 
 ## Later / not planned yet
-- Shared lists, offline/PWA, user-defined categories, per-category budgets, "never suggest",
+- Shared lists, user-defined categories, per-category budgets, "never suggest",
   name aliases/merging, per-user timezone for month boundaries
 
+## PWA
+- [x] Installable: `vite-plugin-pwa` manifest, icons generated from `public/favicon.svg`, SW precaches the app shell (`autoUpdate`)
+- [x] iOS meta tags (apple-touch-icon, standalone, status bar)
+- [ ] Real app icon (current `favicon.svg` is a placeholder); regenerate with `npx pwa-assets-generator --preset minimal-2023 public/favicon.svg`
+- [ ] Offline read: cache lists/items for no-signal use; clear the cache on logout (`/api` is cookie-authed, per user)
+- Not planned: offline writes (needs a mutation queue and conflict handling with purchase sync)
+
 ## Deployment
+- [ ] Frontend hosting must serve `sw.js` and `manifest.webmanifest` with `Cache-Control: no-cache`, or users get stuck on old versions
 - [ ] Postgres backups for prod (nightly `pg_dump` cron or Proxmox VM backup); the `pgdata` volume is the only copy
 
 ## Auth (no hard deadline; pick up as features need them)
