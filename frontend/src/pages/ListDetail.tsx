@@ -12,7 +12,7 @@ import {
   type Item,
   type ListWithItems,
 } from '../api.ts'
-import { dangerButton, Field, outlineButton, Price, primaryButton, Skeleton, Toast } from '../ui.tsx'
+import { dangerButton, Field, outlineButton, Price, primaryButton, Skeleton, Toast, TrashIcon } from '../ui.tsx'
 
 type ItemFields = { name: string; quantity: number; priceCents: number | null }
 
@@ -332,7 +332,7 @@ function ItemRow({ listId, item, onDelete }: { listId: string; item: Item; onDel
   if (editing) return <ItemEditor listId={listId} item={item} onDone={() => setEditing(false)} onDelete={onDelete} />
 
   return (
-    <li className="flex items-center gap-1 rounded-sm bg-shelf pr-3">
+    <li className="flex items-center gap-1 rounded-sm bg-shelf">
       {/* The whole 44px box is the tap target, not just the small checkbox */}
       <label className="flex size-11 shrink-0 cursor-pointer items-center justify-center">
         <input
@@ -369,6 +369,14 @@ function ItemRow({ listId, item, onDelete }: { listId: string; item: Item; onDel
           Not saved
         </span>
       )}
+      <button
+        type="button"
+        onClick={() => onDelete(item)}
+        aria-label={`Delete ${item.name}`}
+        className="flex size-11 shrink-0 items-center justify-center text-ink/40 transition-colors hover:text-alarm"
+      >
+        <TrashIcon />
+      </button>
     </li>
   )
 }

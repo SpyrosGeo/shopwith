@@ -10,6 +10,23 @@ export const primaryButton =
 export const dangerButton =
   'inline-flex min-h-11 items-center justify-center rounded-full border border-alarm px-4 text-sm font-medium text-alarm transition-colors hover:bg-alarm hover:text-aisle disabled:opacity-50'
 
+export function TrashIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="size-5"
+    >
+      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+    </svg>
+  )
+}
+
 export const card = 'rounded-md bg-shelf p-4 sm:p-6'
 
 // Required by default; pass required={false} for optional fields.

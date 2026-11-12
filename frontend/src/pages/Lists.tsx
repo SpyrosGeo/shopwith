@@ -1,12 +1,17 @@
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router'
 import { api, useLists, type List } from '../api.ts'
-import { card, Field, primaryButton, Skeleton } from '../ui.tsx'
+import { card, Field, outlineButton, primaryButton, Skeleton } from '../ui.tsx'
+
+const suggestions = ['Weekly groceries', 'Party', 'BBQ', 'Pharmacy', 'Hardware', 'Pets', 'Baby']
 
 function Lists() {
   const { data: lists, isPending, isError } = useLists()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const [name, setName] = useState('')
+  const used = new Set(lists?.map((l) => l.name.toLowerCase()))
 
   const create = useMutation({
     mutationFn: (name: string) => api<List>('/lists', { method: 'POST', body: { name } }),
@@ -25,14 +30,31 @@ function Lists() {
         className="flex items-end gap-2"
         onSubmit={(e) => {
           e.preventDefault()
-          create.mutate(String(new FormData(e.currentTarget).get('name')))
+          create.mutate(name)
         }}
       >
-        <Field label="New list" name="name" maxLength={100} placeholder="e.g. Weekly groceries" className="flex-1" />
+        <Field
+          label="New list"
+          name="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={100}
+          placeholder="e.g. Weekly groceries"
+          className="flex-1"
+        />
         <button type="submit" disabled={create.isPending} className={primaryButton}>
           Add
         </button>
       </form>
+      <div className="-mt-3 flex flex-wrap gap-2">
+        {suggestions
+          .filter((s) => !used.has(s.toLowerCase()))
+          .map((s) => (
+            <button key={s} type="button" onClick={() => setName(s)} className={outlineButton}>
+              {s}
+            </button>
+          ))}
+      </div>
       {create.isError && (
         <p role="alert" className="text-sm text-alarm">
           {create.error.message}
