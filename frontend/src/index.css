@@ -3,20 +3,21 @@
 @import "@fontsource/atkinson-hyperlegible/700.css";
 @import "@fontsource/barlow-condensed/700.css";
 
-/* "Shelf tag": light for bright store aisles; yellow is reserved for prices, red for danger. */
+/* Omarchy "Alberta" palette (~/.local/state/omarchy/current/theme/colors.toml); yellow is reserved for prices, red for danger. */
 @theme {
-  --color-aisle: #eef2f1;
-  --color-shelf: #ffffff;
-  --color-ink: #14323a;
-  --color-tag: #ffd400;
-  --color-basil: #2f7d4f;
-  --color-alarm: #c8322b;
+  --color-aisle: #0c1b1c;
+  --color-shelf: #1a3134;
+  --color-ink: #c6e2e6;
+  --color-accent: #6bbdd4;
+  --color-tag: #d9d08a;
+  --color-basil: #5fb878;
+  --color-alarm: #e0766f;
   --font-sans: "Atkinson Hyperlegible", system-ui, sans-serif;
   --font-tag: "Barlow Condensed", system-ui, sans-serif;
 }
 
 html {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
@@ -24,7 +25,7 @@ body {
 }
 
 :focus-visible {
-  @apply outline-2 outline-offset-2 outline-ink;
+  @apply outline-2 outline-offset-2 outline-accent;
 }
 
 @media (prefers-reduced-motion: reduce) {
