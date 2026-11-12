@@ -107,7 +107,7 @@ export async function monthlySpend(userId: string, now = new Date()) {
 export type Suggestion = { name: string; medianIntervalMs: number; lastPriceCents: number | null }
 
 // Due Products, most overdue first (see GLOSSARY.md "Due"): at least 3 Purchase days, time since the last
-// one ≥ the median gap between them, and not on any list as an unchecked item.
+// one ≥ the median gap between them, not on any list as an unchecked item, and not snoozed.
 export async function due(userId: string, now = new Date()): Promise<Suggestion[]> {
   const bought = await prisma.purchase.findMany({
     where: { userId },
@@ -117,6 +117,11 @@ export async function due(userId: string, now = new Date()): Promise<Suggestion[
   const onList = new Set(
     (await prisma.item.findMany({ where: { list: { userId }, checkedAt: null }, select: { name: true } })).map((i) =>
       productKey(i.name),
+    ),
+  )
+  const snoozed = new Set(
+    (await prisma.userProduct.findMany({ where: { userId, snoozedUntil: { gt: now } }, select: { name: true } })).map(
+      (p) => p.name,
     ),
   )
 
@@ -135,9 +140,8 @@ export async function due(userId: string, now = new Date()): Promise<Suggestion[
     byName.set(p.name, product)
   }
 
-  // TODO snooze: exclude UserProduct.snoozedUntil > now
   return [...byName]
-    .filter(([name, p]) => p.days.size >= 3 && !onList.has(name))
+    .filter(([name, p]) => p.days.size >= 3 && !onList.has(name) && !snoozed.has(name))
     .map(([, p]) => {
       const times = [...p.days.values()]
       const gaps = times.slice(1).map((t, i) => t - times[i]!).sort((a, b) => a - b)
@@ -149,4 +153,20 @@ export async function due(userId: string, now = new Date()): Promise<Suggestion[
     .filter((p) => p.overdue >= 1)
     .sort((a, b) => b.overdue - a.overdue)
     .map(({ overdue, ...suggestion }) => suggestion)
+}
+
+// Hides a due Product until now + its median interval (see GLOSSARY.md "Snooze").
+// Returns false when the Product isn't due, since only due Products have a median to snooze by.
+// shortcut: computes every due Product to snooze one; look up just this one if history grows large.
+export async function snooze(userId: string, name: string, now = new Date()): Promise<boolean> {
+  const key = productKey(name)
+  const product = (await due(userId, now)).find((s) => productKey(s.name) === key)
+  if (!product) return false
+  const snoozedUntil = new Date(now.getTime() + product.medianIntervalMs)
+  await prisma.userProduct.upsert({
+    where: { userId_name: { userId, name: key } },
+    create: { userId, name: key, snoozedUntil },
+    update: { snoozedUntil },
+  })
+  return true
 }

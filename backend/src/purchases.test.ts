@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest'
 import { prisma } from './db.js'
 import { testUser } from './test-helpers.js'
-import { due, monthlySpend, productKey, products } from './purchases.js'
+import { due, monthlySpend, productKey, products, snooze } from './purchases.js'
 
 // Seeds a Purchase row directly, at a chosen time.
 const bought = (userId: string, name: string, purchasedAt: string, rest: { quantity?: number; priceCents?: number } = {}) =>
@@ -124,4 +124,24 @@ test('due: excludes products on a list as an unchecked item', async () => {
   })
 
   expect((await due(id, now)).map((s) => s.name)).toEqual(['Eggs'])
+})
+
+test('snooze: hides a due product for its median interval, then it is due again', async () => {
+  const { id } = await testUser()
+  for (const d of [7, 5, 3]) await bought(id, 'Milk', daysAgo(d)) // median 2d
+  for (const d of [7, 5, 3]) await bought(id, 'Eggs', daysAgo(d))
+
+  expect(await snooze(id, ' MILK ', now)).toBe(true) // matched by product key
+  expect((await due(id, now)).map((s) => s.name)).toEqual(['Eggs'])
+  expect((await due(id, new Date(now.getTime() + 2 * DAY - 1))).map((s) => s.name)).toEqual(['Eggs'])
+  expect((await due(id, new Date(now.getTime() + 2 * DAY))).map((s) => s.name)).toContain('Milk')
+})
+
+test('snooze: returns false and writes nothing for a product that is not due', async () => {
+  const { id } = await testUser()
+  for (const d of [9, 2]) await bought(id, 'Salt', daysAgo(d)) // only 2 Purchase days
+
+  expect(await snooze(id, 'Salt', now)).toBe(false)
+  expect(await snooze(id, 'Never bought', now)).toBe(false)
+  expect(await prisma.userProduct.count({ where: { userId: id } })).toBe(0)
 })
