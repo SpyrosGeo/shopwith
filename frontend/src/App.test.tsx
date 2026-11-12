@@ -31,7 +31,7 @@ test('logged in: navbar shows name, and log out returns to logged-out state', as
   fireEvent.click(screen.getByRole('button', { name: 'Log out' }))
 
   await screen.findByRole('link', { name: 'Log in / Register' })
-  expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
+  expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', expect.objectContaining({ method: 'POST' }))
 })
 
 test('failed log out shows an error and keeps the user logged in', async () => {

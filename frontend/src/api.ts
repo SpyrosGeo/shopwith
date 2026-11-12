@@ -14,12 +14,25 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   // Keep relative: the Vite dev proxy and the prod nginx both route /api to the backend.
   const res = await fetch(`/api${path}`, {
     method: init.method ?? 'GET',
+    // Surface redirects instead of following them into nginx's bot-check HTML.
+    redirect: 'manual',
     // Only send a JSON header with a body: Fastify rejects an empty body declared as JSON.
     ...(init.body !== undefined && {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(init.body),
     }),
   })
+  if (res.type === 'opaqueredirect') {
+    // The backend never redirects, so this is nginx's bot check (its cookie is missing or expired).
+    // Reload so the browser navigates to the check page. At most once a minute, so an nginx that
+    // also redirects after the check can't trap the app in a reload loop.
+    const last = Number(sessionStorage.getItem('botCheckReloadAt'))
+    if (Date.now() - last > 60_000) {
+      sessionStorage.setItem('botCheckReloadAt', String(Date.now()))
+      window.location.reload()
+    }
+    throw new ApiError(0, 'Security check needed: reload the page')
+  }
   if (!res.ok) {
     const data = await res.json().catch(() => null)
     throw new ApiError(res.status, data?.error ?? `Request failed (${res.status})`)
