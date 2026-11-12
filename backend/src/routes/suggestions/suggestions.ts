@@ -12,6 +12,7 @@ export const suggestionRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/snooze', async (request, reply) => {
     const { name } = SuggestionBody.parse(request.body)
-    return reply.code((await snooze(userId(request), name, new Date())) ? 204 : 404).send()
+    if (!(await snooze(userId(request), name, new Date()))) return reply.code(404).send({ error: 'Not found' })
+    return reply.code(204).send()
   })
 }
