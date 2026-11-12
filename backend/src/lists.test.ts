@@ -3,6 +3,7 @@ import { prisma } from './db.js'
 import { testUser } from './test-helpers.js'
 import {
   addItem,
+  addToNewestActiveList,
   createList,
   deleteList,
   getList,
@@ -74,6 +75,29 @@ test('summaries: counts, estimate, and active = items left to buy or empty', asy
     partialSummary,
     { id: done.id, remaining: 0, total: 1 },
   ])
+})
+
+test('addToNewestActiveList: newest active list, else a new "Shopping" list', async () => {
+  const { id: userId } = await testUser()
+  const milk = { name: 'Milk', quantity: 1, priceCents: 129 }
+
+  const first = await addToNewestActiveList(userId, milk)
+  expect(first.list.name).toBe('Shopping') // no lists yet
+  expect(first.item).toMatchObject({ ...milk, listId: first.list.id, checkedAt: null })
+
+  const older = await createList(userId, 'Older')
+  const newer = await createList(userId, 'Newer')
+  expect((await addToNewestActiveList(userId, milk)).list.id).toBe(newer.id) // newest active wins
+
+  const items = await prisma.item.findMany({ where: { list: { userId }, checkedAt: null } })
+  for (const item of items) await updateItem(userId, item.listId, item.id, { checked: true })
+  await addItem(userId, older.id, milk)
+  expect((await addToNewestActiveList(userId, milk)).list.id).toBe(older.id) // fully checked lists are skipped
+
+  await prisma.item.updateMany({ where: { list: { userId } }, data: { checkedAt: new Date() } })
+  const created = await addToNewestActiveList(userId, milk)
+  expect(created.list).toMatchObject({ name: 'Shopping' }) // none active: creates another
+  expect(created.list.id).not.toBe(first.list.id)
 })
 
 test("every function refuses another user's list", async () => {

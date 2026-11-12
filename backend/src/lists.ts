@@ -23,13 +23,13 @@ export type ItemPatch = z.infer<typeof ItemPatch>
 const ownedList = (userId: string, id: string) =>
   prisma.list.findFirstOrThrow({ where: { id, userId }, select: { id: true, name: true } })
 
-// Newest first. Active: at least one item still to buy, or no items yet.
+// Active: at least one item still to buy, or no items yet.
+const active = { OR: [{ items: { some: { checkedAt: null } } }, { items: { none: {} } }] }
+
+// Newest first.
 export async function listSummaries(userId: string, { activeOnly = false } = {}) {
   const lists = await prisma.list.findMany({
-    where: {
-      userId,
-      ...(activeOnly && { OR: [{ items: { some: { checkedAt: null } } }, { items: { none: {} } }] }),
-    },
+    where: { userId, ...(activeOnly && active) },
     orderBy: { createdAt: 'desc' },
     include: { items: { select: { priceCents: true, quantity: true, checkedAt: true } } },
   })
@@ -73,6 +73,18 @@ export async function addItem(userId: string, listId: string, data: NewItem) {
     const item = await tx.item.create({ data: { ...data, listId: list.id } })
     await syncPurchase(tx, userId, item, list.name)
     return item
+  })
+}
+
+// Adds to the newest active list, creating "Shopping" when none is active.
+export async function addToNewestActiveList(userId: string, data: NewItem) {
+  return prisma.$transaction(async (tx) => {
+    const list =
+      (await tx.list.findFirst({ where: { userId, ...active }, orderBy: { createdAt: 'desc' } })) ??
+      (await tx.list.create({ data: { name: 'Shopping', userId } }))
+    const item = await tx.item.create({ data: { ...data, listId: list.id } })
+    await syncPurchase(tx, userId, item, list.name)
+    return { list: { id: list.id, name: list.name }, item }
   })
 }
 

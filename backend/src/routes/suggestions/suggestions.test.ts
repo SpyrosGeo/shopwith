@@ -32,6 +32,9 @@ test('requires login', async () => {
   expect(
     (await app.inject({ method: 'POST', url: '/api/suggestions/snooze', payload: { name: 'Milk' } })).statusCode,
   ).toBe(401)
+  expect(
+    (await app.inject({ method: 'POST', url: '/api/suggestions/add', payload: { name: 'Milk' } })).statusCode,
+  ).toBe(401)
 })
 
 // Due rules are covered in src/purchases.test.ts.
@@ -61,4 +64,30 @@ test('snooze needs a name', async () => {
   const { call } = await userWithMilkDue()
   expect((await call('POST', '/api/suggestions/snooze', { name: '  ' })).statusCode).toBe(400)
   expect((await call('POST', '/api/suggestions/snooze', {})).statusCode).toBe(400)
+})
+
+// The list-choice rule is covered in src/lists.test.ts.
+test('add puts the display name, quantity 1 and last price on the newest active list', async () => {
+  const { call } = await userWithMilkDue()
+  const res = await call('POST', '/api/suggestions/add', { name: ' milk ' })
+  expect(res.statusCode).toBe(201)
+  const { list, item } = res.json()
+  expect(list).toMatchObject({ name: 'Shopping' })
+  expect(item).toMatchObject({ name: 'Milk', quantity: 1, priceCents: 129, listId: list.id, checkedAt: null })
+  expect((await call('GET', '/api/suggestions')).json()).toEqual([]) // on a list now, so no longer due
+})
+
+test('adding a product that is not due is a 404', async () => {
+  const { call } = await userWithMilkDue()
+  const res = await call('POST', '/api/suggestions/add', { name: 'Bread' })
+  expect(res.statusCode).toBe(404)
+  expect(res.json()).toEqual({ error: 'Not found' })
+  await call('POST', '/api/suggestions/add', { name: 'Milk' })
+  expect((await call('POST', '/api/suggestions/add', { name: 'Milk' })).statusCode).toBe(404) // already added
+})
+
+test('add needs a name', async () => {
+  const { call } = await userWithMilkDue()
+  expect((await call('POST', '/api/suggestions/add', { name: '  ' })).statusCode).toBe(400)
+  expect((await call('POST', '/api/suggestions/add', {})).statusCode).toBe(400)
 })
