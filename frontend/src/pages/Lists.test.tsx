@@ -38,6 +38,19 @@ test('creating a list opens it', async () => {
   expect(sent).toEqual({ name: 'Party' })
 })
 
+test('suggestion pills fill the name and skip names already used', async () => {
+  mockApi({
+    'GET /api/auth/me': () => [200, tess],
+    'GET /api/lists': () => [200, [{ ...weekly, name: 'party' }]],
+  })
+  renderApp('/lists')
+
+  await screen.findByRole('link', { name: /party/ })
+  expect(screen.queryByRole('button', { name: 'Party' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'BBQ' }))
+  expect((screen.getByLabelText('New list') as HTMLInputElement).value).toBe('BBQ')
+})
+
 test('logged out: redirects to log in', async () => {
   mockApi({ 'GET /api/auth/me': () => [401] })
   renderApp('/lists')

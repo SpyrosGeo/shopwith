@@ -135,6 +135,16 @@ test('delete item waits for undo, then sends the delete', async () => {
   await waitFor(() => expect('deleteItem' in sent).toBe(true))
 })
 
+test('trash icon on the row deletes the item with undo', async () => {
+  setup([item({})])
+  fireEvent.click(await screen.findByRole('button', { name: 'Delete Milk' }))
+
+  expect(screen.queryByRole('button', { name: 'Edit Milk' })).toBeNull()
+  screen.getByText('Deleted Milk')
+  fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+  screen.getByRole('button', { name: 'Edit Milk' })
+})
+
 test('delete list asks first, then goes back to lists', async () => {
   const confirm = vi.fn(() => false)
   vi.stubGlobal('confirm', confirm)
