@@ -21,6 +21,7 @@ model User {
   sessions     Session[]
   lists        List[]
   purchases    Purchase[]
+  products     UserProduct[]
 }
 
 model Session {
@@ -74,4 +75,15 @@ model Purchase {
 
   @@index([userId, name, purchasedAt])
   @@index([userId, purchasedAt])
+}
+
+// Per-user settings for one Product (see ADR-0001). A row is created on first use;
+// no row = defaults (not snoozed).
+model UserProduct {
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String // productKey()
+  snoozedUntil DateTime? // hidden from Suggestions until then
+
+  @@unique([userId, name])
 }

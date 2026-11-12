@@ -6,7 +6,7 @@ import { cost, syncPurchase } from './purchases.js'
 // and throws P2025 (mapped to 404) when the list or item isn't the user's.
 // Inputs are already validated: the routes parse request bodies with the schemas below.
 
-const Name = z.string().trim().min(1).max(100)
+export const Name = z.string().trim().min(1).max(100)
 const Quantity = z.number().int().min(1).max(999)
 const Price = z.number().int().min(0).max(10_000_000).nullable() // euro cents per unit; null = unknown
 export const ListBody = z.object({ name: Name })
