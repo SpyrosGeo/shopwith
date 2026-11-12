@@ -50,7 +50,9 @@ test('a snoozed product disappears', async () => {
 
 test('snoozing a product that is not due is a 404', async () => {
   const { call } = await userWithMilkDue()
-  expect((await call('POST', '/api/suggestions/snooze', { name: 'Bread' })).statusCode).toBe(404)
+  const res = await call('POST', '/api/suggestions/snooze', { name: 'Bread' })
+  expect(res.statusCode).toBe(404)
+  expect(res.json()).toEqual({ error: 'Not found' }) // same body as other 404s
   await call('POST', '/api/suggestions/snooze', { name: 'Milk' })
   expect((await call('POST', '/api/suggestions/snooze', { name: 'Milk' })).statusCode).toBe(404) // already snoozed
 })

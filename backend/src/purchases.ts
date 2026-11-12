@@ -2,7 +2,7 @@ import type { Prisma } from './generated/prisma/client.js'
 import { prisma } from './db.js'
 
 // The Purchase history module: the only writer of Purchase rows, and every reader of them
-// (products, monthly spend; later suggestions and insights).
+// (products, monthly spend, suggestions; later insights). Also writes UserProduct rows (snooze).
 
 // The key every product feature groups by (spend, suggestions, autocomplete, categories),
 // so "Milk " and "milk" are the same product.

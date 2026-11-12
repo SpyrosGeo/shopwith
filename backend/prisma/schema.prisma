@@ -21,7 +21,7 @@ model User {
   sessions     Session[]
   lists        List[]
   purchases    Purchase[]
-  products     UserProduct[]
+  userProducts UserProduct[]
 }
 
 model Session {
