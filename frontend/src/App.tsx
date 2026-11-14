@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useNavigate } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, useMe } from './api.ts'
-import { outlineButton } from './ui.tsx'
+import { outlineButton, ThemeToggle } from './ui.tsx'
 import Landing from './pages/Landing.tsx'
 import Auth from './pages/Auth.tsx'
 import Dashboard from './pages/Dashboard.tsx'
@@ -41,28 +41,31 @@ function App() {
           </Link>
           {me && <Nav className="hidden gap-4 sm:flex" />}
         </div>
-        {me ? (
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="hidden truncate text-sm text-ink/60 sm:inline">{me.name}</span>
-            {logout.isError && (
-              <span role="alert" className="text-xs text-alarm">
-                Log out failed
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => logout.mutate()}
-              disabled={logout.isPending}
-              className={outlineButton}
-            >
-              Log out
-            </button>
-          </div>
-        ) : (
-          <Link to="/auth" className={outlineButton}>
-            Log in / Register
-          </Link>
-        )}
+        <div className="flex min-w-0 items-center gap-3">
+          <ThemeToggle />
+          {me ? (
+            <>
+              <span className="hidden truncate text-sm text-ink/60 sm:inline">{me.name}</span>
+              {logout.isError && (
+                <span role="alert" className="text-xs text-alarm">
+                  Log out failed
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => logout.mutate()}
+                disabled={logout.isPending}
+                className={outlineButton}
+              >
+                Log out
+              </button>
+            </>
+          ) : (
+            <Link to="/auth" className={outlineButton}>
+              Log in / Register
+            </Link>
+          )}
+        </div>
       </header>
 
       {/* Bottom padding keeps content clear of the mobile tab bar */}

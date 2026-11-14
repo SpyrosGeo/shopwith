@@ -13,6 +13,19 @@
     <title>shopwith</title>
   </head>
   <body>
+    <!-- Sets the theme before first paint so light-mode users never see a dark flash. Mirrors ThemeToggle in src/ui.tsx.
+         In <body>, not <head>: Vite injects the stylesheet at the end of <head>, and this script must wait for it to read --color-aisle. -->
+    <script>
+      try {
+        var mode = localStorage.getItem('theme')
+      } catch {}
+      var root = document.documentElement
+      root.dataset.theme =
+        mode === 'light' || mode === 'dark' ? mode : matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+      // Empty in dev, where Vite injects CSS from JS; ThemeToggle sets the meta tag on mount anyway.
+      var aisle = getComputedStyle(root).getPropertyValue('--color-aisle').trim()
+      if (aisle) document.querySelector('meta[name="theme-color"]').setAttribute('content', aisle)
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
