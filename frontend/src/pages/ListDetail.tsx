@@ -141,7 +141,7 @@ function ListDetail() {
       {pending && (
         <Toast>
           <span className="truncate">Deleted {pending.name}</span>
-          <button type="button" onClick={undo} className="min-h-11 shrink-0 px-2 font-bold text-tag">
+          <button type="button" onClick={undo} className="min-h-11 shrink-0 px-2 font-bold underline decoration-tag decoration-2 underline-offset-4">
             Undo
           </button>
         </Toast>

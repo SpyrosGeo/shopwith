@@ -48,3 +48,25 @@ test('failed log out shows an error and keeps the user logged in', async () => {
   expect((await screen.findByRole('alert')).textContent).toBe('Log out failed')
   screen.getByText('Tess')
 })
+
+test('theme toggle cycles System, Light, Dark and remembers the choice', async () => {
+  mockApi({ 'GET /api/auth/me': () => [401] })
+  renderApp('/')
+  const html = document.documentElement
+
+  const toggle = await screen.findByRole('button', { name: 'Theme: System (switch to Light)' })
+  expect(html.dataset.theme).toBe('dark') // stub OS reports dark
+
+  fireEvent.click(toggle)
+  expect(toggle.getAttribute('aria-label')).toBe('Theme: Light (switch to Dark)')
+  expect(html.dataset.theme).toBe('light')
+  expect(localStorage.getItem('theme')).toBe('light')
+
+  fireEvent.click(toggle)
+  expect(html.dataset.theme).toBe('dark')
+  expect(localStorage.getItem('theme')).toBe('dark')
+
+  fireEvent.click(toggle)
+  expect(toggle.getAttribute('aria-label')).toBe('Theme: System (switch to Light)')
+  expect(localStorage.getItem('theme')).toBeNull()
+})

@@ -12,12 +12,26 @@
   --color-tag: #d9d08a;
   --color-basil: #5fb878;
   --color-alarm: #e0766f;
+  --color-carbon: #0c1b1c; /* fixed dark text on yellow price tags, same in both themes */
   --font-sans: "Atkinson Hyperlegible", system-ui, sans-serif;
   --font-tag: "Barlow Condensed", system-ui, sans-serif;
 }
 
 html {
   color-scheme: dark;
+}
+
+/* data-theme is set before first paint by the script in index.html, then by ThemeToggle.
+   Same token meanings as dark; text tokens checked for WCAG AA on aisle and shelf. */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-aisle: #f0f5f6;
+  --color-shelf: #ffffff;
+  --color-ink: #0c1b1c;
+  --color-accent: #1d6b80;
+  --color-tag: #ecd35a;
+  --color-basil: #2f8a4c;
+  --color-alarm: #b42318;
 }
 
 body {
